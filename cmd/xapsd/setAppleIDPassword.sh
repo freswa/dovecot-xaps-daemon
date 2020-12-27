@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # using read command without any variable
 # change to "read -sp" if password input should be hidden
 
