@@ -88,3 +88,6 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 
+cmd/.DS_Store
+cmd/xapsd/conf.txt
+.DS_Store
