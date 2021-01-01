@@ -27,6 +27,15 @@ func ParseConfig(configName, configPath string) {
 	viper.AddConfigPath("/etc/xapsd/")
 	viper.AddConfigPath(configPath)
 
+	// // Oprional
+	// viper.SetDefault("LogLevel", "warn")
+	// viper.SetDefault("DatabaseFile", "/var/lib/xapsd/database.json")
+	// viper.SetDefault("SocketPath", "/var/run/dovecot/xapsd.sock")
+	// viper.SetDefault("CheckInterval", 20)
+	// viper.SetDefault("Delay", 30)
+	// viper.SetDefault("AppleId", "apple@apple.com")
+	// viper.SetDefault("AppleIdHashedPassword", "thehash")
+
 	err := viper.ReadInConfig()
 	if err != nil {
 		log.Fatal(err)
