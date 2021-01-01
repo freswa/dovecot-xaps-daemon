@@ -26,30 +26,86 @@
 package main
 
 import (
-	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
 	"flag"
 	"fmt"
+
 	"github.com/freswa/dovecot-xaps-daemon/internal"
 	"github.com/freswa/dovecot-xaps-daemon/internal/config"
 	"github.com/freswa/dovecot-xaps-daemon/internal/database"
 	log "github.com/sirupsen/logrus"
-	"os"
-	"strings"
+	"github.com/spf13/viper"
 )
 
 const Version = "1.1"
 
 var configPath = flag.String("configPath", "", `Add an additional path to lookup the config file in`)
 var configName = flag.String("configName", "", `Set a different configName (without extension) than the default "xapsd"`)
-var generatePassword = flag.Bool("pass", false, `Generate a password hash to be used in the xapsd.yaml`)
 
+// additional flags to update the xapsd.yaml config file
+var setLogLevel = flag.String("setLogLevel", "warn", `Set the loglevel to either trace, debug, error, fatal, info, panic or warn`)
+var setDatabaseFile = flag.String("setDatabaseFile", "", `Sets the location of the file database file. Xapsd creates a json file to store the registration persistent on disk.`)
+var setSocketPath = flag.String("setSocketPath", "", `Sets the location of the socket xapsd uses a socket to allow dovecot to connect.`)
+var setCheckInterval = flag.Uint("setCheckInterval", 0, `This sets the interval to check for delayed messages.`)
+var setDelay = flag.Uint("setDelay", 0, `Set the time how long notifications for not-new messages should be delayed until they are sent.`)
+var setAppleID = flag.String("setAppleID", "", `Set a valid Apple ID to retrieve certificates from Apple`)
+var setApplePassword = flag.String("setApplePassword", "", `Set the correct Apple ID Password. The password will be saved as hach value`)
+
+// additional functions to update the xapsd.yaml config file
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
+func hashPassword(cleartext string) string {
+	hash := sha256.New()
+	hash.Write([]byte(cleartext))
+	sha256hash := hex.EncodeToString(hash.Sum(nil))
+	return sha256hash
+}
+
+func updateConfig() bool {
+	confUpdates := false
+	if isFlagPassed("setLogLevel") {
+		viper.Set(`LogLevel`, setLogLevel)
+		confUpdates = true
+	}
+	if isFlagPassed("setDatabaseFile") {
+		viper.Set(`DatabaseFile`, setSocketPath)
+		confUpdates = true
+	}
+	if isFlagPassed("setSocketPath") {
+		viper.Set(`SocketPath`, setSocketPath)
+		confUpdates = true
+	}
+	if isFlagPassed("setCheckInterval") {
+		viper.Set(`CheckInterval`, setCheckInterval)
+		confUpdates = true
+	}
+	if isFlagPassed("setDelay") {
+		viper.Set(`Delay`, setDelay)
+		confUpdates = true
+	}
+	if isFlagPassed("setAppleID") {
+		viper.Set(`AppleID`, setAppleID)
+		confUpdates = true
+	}
+	if isFlagPassed("setApplePassword") {
+		viper.Set(`AppleIdHashedPassword`, hashPassword(*setApplePassword))
+		confUpdates = true
+	}
+	return confUpdates
+}
+
+// main program
 func main() {
 	flag.Parse()
-	if *generatePassword {
-		hashPassword()
-	}
 	config.ParseConfig(*configName, *configPath)
 	config := config.GetOptions()
 	lvl, err := log.ParseLevel(config.LogLevel)
@@ -58,29 +114,25 @@ func main() {
 	}
 	log.SetLevel(lvl)
 
-	log.Debugln("Opening databasefile at", config.DatabaseFile)
-	db, err := database.NewDatabase(config.DatabaseFile)
-	if err != nil {
-		log.Fatal("Cannot open databasefile: ", err)
+	if updateConfig() == true {
+		err = viper.WriteConfig()
+		if err != nil {
+			log.Fatal(err)
+		}
+		// log.Printf("Config file successfully updated")
+		fmt.Println("Config file successfully updated")
+
+	} else {
+
+		log.Debugln("Opening databasefile at", config.DatabaseFile)
+		db, err := database.NewDatabase(config.DatabaseFile)
+		if err != nil {
+			log.Fatal("Cannot open databasefile: ", err)
+		}
+
+		apns := internal.NewApns(&config, db)
+
+		log.Printf("Starting to listen on %s", config.SocketPath)
+		internal.NewSocket(&config, db, apns)
 	}
-
-	apns := internal.NewApns(&config, db)
-
-	log.Printf("Starting to listen on %s", config.SocketPath)
-	internal.NewSocket(&config, db, apns)
-}
-
-// function to generate the password
-func hashPassword() {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Please enter the password -> ")
-	text, _ := reader.ReadString('\n')
-	// remove newlines
-	text = strings.Replace(text, "\n", "", -1)
-	hash := sha256.New()
-	hash.Write([]byte(text))
-	sha256sum := hex.EncodeToString(hash.Sum(nil))
-	fmt.Printf("This is the hash -> %s\n", sha256sum)
-	fmt.Print("For security reasons, we don't fill in the hash automagically. Please do so yourself.\n")
-	os.Exit(0)
 }

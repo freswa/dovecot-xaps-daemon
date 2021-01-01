@@ -61,7 +61,20 @@ Change config to fit your needs.
 Especially fill in the details of the Apple ID. 
 The parameter `appleId` must be set to the login email address of the account.
 Please do _NOT_ fill in your password into `appleIdHashedPassword`, but instead run
-`xapsd -pass`. Then copy the printed hash to the config file.
+`openssl dgst -sha256 -binary | xxd -p -c 32`, then type your password and directly after that, press `Ctrl+D Ctrl+D`. Do not press `enter` during this process. Otherwise the generated Hash will not work. Then copy the printed hash to the config file.
+
+Alternatively, the configuration file can also be updated via the command line, e.g.
+```
+xapsd -setAppleID=your@apple.com -setApplePassword=yourAppleIDPassword
+```
+The hash value for the AppleID password will be generated automatically and saved in the config file.
+All possible command line options:
+```
+xapsd -configPath=/etc/xapsd -configName=xapsd \
+    -setDatabaseFile=/var/lib/xapsd/database.json -setSocketPath=/var/run/dovecot/xapsd.sock \
+    -setLogLevel=warn -setCheckInterval=20 -setDelay=30 \
+    -setAppleID=your@appleid.com -setApplePassword=yourAppleIDPassword
+```
 
 
 Setting up Devices
