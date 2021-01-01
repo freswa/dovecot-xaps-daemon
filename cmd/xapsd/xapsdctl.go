@@ -35,9 +35,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-const Version = "0.6"
+const Version = "0.67"
 
-var configPath = flag.String("configPath", "./configs/xapsd/", `Add an additional path to lookup the config file in`)
+var configPath = flag.String("configPath", "/usr/local/etc/xapsd", `Add an additional path to lookup the config file in`)
 var configName = flag.String("configName", "", `Set a different configName (without extension) than the default "xapsd"`)
 
 var setLogLevel = flag.String("setLogLevel", "warn", `Set the loglevel to either trace, debug, error, fatal, info, panic or warn`)
