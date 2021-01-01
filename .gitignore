@@ -92,3 +92,4 @@ cmd/.DS_Store
 cmd/xapsd/conf.txt
 .DS_Store
 ideas.txt
+cmd/xapsd/setAppleIDPassword.sh
