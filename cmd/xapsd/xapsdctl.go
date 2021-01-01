@@ -57,6 +57,7 @@ func isFlagPassed(name string) bool {
 	})
 	return found
 }
+
 func hashPassword(cleartext string) string {
 	hash := sha256.New()
 	hash.Write([]byte(cleartext))
