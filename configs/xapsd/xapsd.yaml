@@ -9,6 +9,7 @@ databaseFile: /var/lib/xapsd/database.json
 
 # xapsd listens ona a socket for http/https requests from the dovecot plugin. This sets the port number of the socket.
 port: 11619
+listenAddr: 127.0.0.1
 
 # xapsd is able to listen on a HTTPS Socket to allow HTTP/2 to be used
 # SSL is enabled implicitly when certfile and keyfile exist
@@ -17,6 +18,7 @@ port: 11619
 tlsCertfile:
 tlsKeyfile:
 tlsPort: 11620
+tlsListenAddr:
 
 # Notifications that are not initiated by new messages are not sent immediately for two reasons:
 # 1. When you move/copy/delete messages you most likely move/copy/delete more messages within a short period of time.

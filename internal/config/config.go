@@ -13,6 +13,7 @@ type (
 		LogLevel              string
 		DatabaseFile          string
 		Port                  string
+		ListenAddr            string
 		CheckInterval         uint
 		Delay                 uint
 		AppleId               string
@@ -20,6 +21,7 @@ type (
 		TlsCertfile           string
 		TlsKeyfile            string
 		TlsPort               string
+		TlsListenAddr         string
 	}
 )
 

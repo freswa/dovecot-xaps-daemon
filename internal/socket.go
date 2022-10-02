@@ -40,15 +40,15 @@ func NewHttpSocket(config *config.Config, db *database.Database, apns *Apns) {
 	router.POST("/notify", httpSocket.handleNotify)
 	if len(config.TlsCertfile) > 0 || len(config.TlsKeyfile) > 0 {
 		go func() {
-			err := http.ListenAndServeTLS(":"+config.TlsPort, config.TlsCertfile, config.TlsKeyfile, router)
+			err := http.ListenAndServeTLS(config.TlsListenAddr+":"+config.TlsPort, config.TlsCertfile, config.TlsKeyfile, router)
 			if err != nil {
-				log.Fatalf("Could not listen on Port %s: %s", config.TlsPort, err)
+				log.Fatalf("Could not listen on address %s:%s: %s", config.TlsListenAddr, config.TlsPort, err)
 			}
 		}()
 	}
-	err := http.ListenAndServe(":"+config.Port, router)
+	err := http.ListenAndServe(config.ListenAddr+":"+config.Port, router)
 	if err != nil {
-		log.Fatalf("Could not listen on Port %s: %s", config.Port, err)
+		log.Fatalf("Could not listen on address %s:%s: %s", config.ListenAddr, config.Port, err)
 	}
 }
 
