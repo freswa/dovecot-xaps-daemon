@@ -7,9 +7,10 @@ loglevel: info
 # This sets the location of the file.
 databaseFile: /var/lib/xapsd/database.json
 
-# xapsd listens ona a socket for http/https requests from the dovecot plugin. This sets the port number of the socket.
+# xapsd listens on a socket for http/https requests from the dovecot plugin.
+# This sets the address and port number of the listen socket.
+listenAddr: '[::1]'
 port: 11619
-listenAddr: 127.0.0.1
 
 # xapsd is able to listen on a HTTPS Socket to allow HTTP/2 to be used
 # SSL is enabled implicitly when certfile and keyfile exist
@@ -17,8 +18,8 @@ listenAddr: 127.0.0.1
 # !!! direct usage with the plugin is discouraged and unsupported
 tlsCertfile:
 tlsKeyfile:
-tlsPort: 11620
 tlsListenAddr:
+tlsPort: 11620
 
 # Notifications that are not initiated by new messages are not sent immediately for two reasons:
 # 1. When you move/copy/delete messages you most likely move/copy/delete more messages within a short period of time.
