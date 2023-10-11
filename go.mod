@@ -9,5 +9,5 @@ require (
 	github.com/sideshow/apns2 v0.23.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/viper v1.15.0
-	golang.org/x/net v0.7.0
+	golang.org/x/net v0.17.0
 )
