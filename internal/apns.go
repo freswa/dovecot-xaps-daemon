@@ -1,8 +1,10 @@
 package internal
 
 import (
+	"crypto/md5"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"errors"
 	"github.com/freswa/dovecot-xaps-daemon/internal/config"
 	"github.com/freswa/dovecot-xaps-daemon/internal/database"
@@ -136,11 +138,11 @@ func (apns *Apns) checkDelayed() {
 	}
 	apns.mapMutex.Unlock()
 	for _, reg := range sendNow {
-		apns.SendNotification(reg, false)
+		apns.SendNotification(reg, false, "")
 	}
 }
 
-func (apns *Apns) SendNotification(registration database.Registration, delayed bool) {
+func (apns *Apns) SendNotification(registration database.Registration, delayed bool, mailbox string) {
 	apns.mapMutex.Lock()
 	if delayed {
 		apns.delayedApns[registration] = time.Now()
@@ -157,6 +159,11 @@ func (apns *Apns) SendNotification(registration database.Registration, delayed b
 	notification.Topic = apns.Topic
 	composedPayload := []byte(`{"aps":{`)
 	composedPayload = append(composedPayload, []byte(`"account-id":"`+registration.AccountId+`"`)...)
+	if mailbox != "" {
+		hash := md5.Sum([]byte(mailbox))
+		mailbox_hash := hex.EncodeToString(hash[:])
+		composedPayload = append(composedPayload, []byte(`, "m":"`+mailbox_hash+`"`)...)
+	}
 	composedPayload = append(composedPayload, []byte(`}}`)...)
 	notification.Payload = composedPayload
 	notification.PushType = apns2.PushTypeBackground
