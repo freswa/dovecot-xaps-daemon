@@ -3,12 +3,13 @@ package apple_xserver_certs
 import (
 	"bytes"
 	"encoding/pem"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 )
 
-func NewCerts(username string, passwordhash string) *Certificates {
+func NewCerts(username string, passwordhash string) (*Certificates, error) {
 	certs := &Certificates{}
 	generatePrivateKeys(certs)
 	body := createCertRequestBody(certs, username, passwordhash)
@@ -16,19 +17,19 @@ func NewCerts(username string, passwordhash string) *Certificates {
 	return handleResponse(certs, response)
 }
 
-func RenewCerts(certs *Certificates, username string, passwordhash string) *Certificates {
+func RenewCerts(certs *Certificates, username string, passwordhash string) (*Certificates, error) {
 	body := createCertRequestBody(certs, username, passwordhash)
 	response := sendRequest(body, false)
 	return handleResponse(certs, response)
 }
 
-func handleResponse(certs *Certificates, response []byte) *Certificates {
+func handleResponse(certs *Certificates, response []byte) (*Certificates, error) {
 	responseBody, err := parseResponse(response)
 	if err != nil {
 		log.Fatal(err)
 	}
 	if responseBody.Response.Status.ErrorCode != 0 {
-		log.Fatalf("Error %d while retrieving certificates:\n%+v", responseBody.Response.Status.ErrorCode, responseBody)
+		return nil, fmt.Errorf("Error %d while retrieving certificates:\n%+v", responseBody.Response.Status.ErrorCode, responseBody)
 	}
 	calendarCertDER, _ := pem.Decode([]byte(responseBody.Response.Certificates[0].Certificate))
 	certs.Calendar.Certificate = make([][]byte, 1)
@@ -46,7 +47,7 @@ func handleResponse(certs *Certificates, response []byte) *Certificates {
 	certs.Alerts.Certificate = make([][]byte, 1)
 	certs.Alerts.Certificate[0] = alertsCertDER.Bytes
 
-	return certs
+	return certs, nil
 }
 
 func sendRequest(reqBody []byte, newCerts bool) (respBody []byte) {
