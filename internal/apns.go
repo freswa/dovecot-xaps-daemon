@@ -4,15 +4,17 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"github.com/freswa/dovecot-xaps-daemon/internal/config"
-	"github.com/freswa/dovecot-xaps-daemon/internal/database"
-	"github.com/freswa/dovecot-xaps-daemon/pkg/apple_xserver_certs"
-	"github.com/sideshow/apns2"
-	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/http2"
+	"io/ioutil"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/freswa/dovecot-xaps-daemon/internal/config"
+	"github.com/freswa/dovecot-xaps-daemon/internal/database"
+	"github.com/sideshow/apns2"
+	"github.com/sideshow/apns2/certificate"
+	"github.com/sideshow/apns2/token"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -23,7 +25,7 @@ const (
 var (
 	oidUid        = []int{0, 9, 2342, 19200300, 100, 1, 1}
 	productionOID = []int{1, 2, 840, 113635, 100, 6, 3, 2}
-	GeoTrustCert  = "-----BEGIN CERTIFICATE-----\nMIIDVDCCAjygAwIBAgIDAjRWMA0GCSqGSIb3DQEBBQUAMEIxCzAJBgNVBAYTAlVT\nMRYwFAYDVQQKEw1HZW9UcnVzdCBJbmMuMRswGQYDVQQDExJHZW9UcnVzdCBHbG9i\nYWwgQ0EwHhcNMDIwNTIxMDQwMDAwWhcNMjIwNTIxMDQwMDAwWjBCMQswCQYDVQQG\nEwJVUzEWMBQGA1UEChMNR2VvVHJ1c3QgSW5jLjEbMBkGA1UEAxMSR2VvVHJ1c3Qg\nR2xvYmFsIENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2swYYzD9\n9BcjGlZ+W988bDjkcbd4kdS8odhM+KhDtgPpTSEHCIjaWC9mOSm9BXiLnTjoBbdq\nfnGk5sRgprDvgOSJKA+eJdbtg/OtppHHmMlCGDUUna2YRpIuT8rxh0PBFpVXLVDv\niS2Aelet8u5fa9IAjbkU+BQVNdnARqN7csiRv8lVK83Qlz6cJmTM386DGXHKTubU\n1XupGc1V3sjs0l44U+VcT4wt/lAjNvxm5suOpDkZALeVAjmRCw7+OC7RHQWa9k0+\nbw8HHa8sHo9gOeL6NlMTOdReJivbPagUvTLrGAMoUgRx5aszPeE4uwc2hGKceeoW\nMPRfwCvocWvk+QIDAQABo1MwUTAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBTA\nephojYn7qwVkDBF9qn1luMrMTjAfBgNVHSMEGDAWgBTAephojYn7qwVkDBF9qn1l\nuMrMTjANBgkqhkiG9w0BAQUFAAOCAQEANeMpauUvXVSOKVCUn5kaFOSPeCpilKIn\nZ57QzxpeR+nBsqTP3UEaBU6bS+5Kb1VSsyShNwrrZHYqLizz/Tt1kL/6cdjHPTfS\ntQWVYrmm3ok9Nns4d0iXrKYgjy6myQzCsplFAMfOEVEiIuCl6rYVSAlk6l5PdPcF\nPseKUgzbFbS9bZvlxrFUaKnjaZC2mqUPuLk/IH2uSrW4nOQdtqvmlKXBx4Ot2/Un\nhw4EbNX/3aBd7YdStysVAq45pmp06drE57xNNB6pXE0zX5IJL4hmXXeXxx12E6nV\n5fEWCRE11azbJHFwLJhWC9kXtNHjUStedejV0NxPNO3CBWaAocvmMw==\n-----END CERTIFICATE-----"
+	//GeoTrustCert  = "-----BEGIN CERTIFICATE-----\nMIIDVDCCAjygAwIBAgIDAjRWMA0GCSqGSIb3DQEBBQUAMEIxCzAJBgNVBAYTAlVT\nMRYwFAYDVQQKEw1HZW9UcnVzdCBJbmMuMRswGQYDVQQDExJHZW9UcnVzdCBHbG9i\nYWwgQ0EwHhcNMDIwNTIxMDQwMDAwWhcNMjIwNTIxMDQwMDAwWjBCMQswCQYDVQQG\nEwJVUzEWMBQGA1UEChMNR2VvVHJ1c3QgSW5jLjEbMBkGA1UEAxMSR2VvVHJ1c3Qg\nR2xvYmFsIENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2swYYzD9\n9BcjGlZ+W988bDjkcbd4kdS8odhM+KhDtgPpTSEHCIjaWC9mOSm9BXiLnTjoBbdq\nfnGk5sRgprDvgOSJKA+eJdbtg/OtppHHmMlCGDUUna2YRpIuT8rxh0PBFpVXLVDv\niS2Aelet8u5fa9IAjbkU+BQVNdnARqN7csiRv8lVK83Qlz6cJmTM386DGXHKTubU\n1XupGc1V3sjs0l44U+VcT4wt/lAjNvxm5suOpDkZALeVAjmRCw7+OC7RHQWa9k0+\nbw8HHa8sHo9gOeL6NlMTOdReJivbPagUvTLrGAMoUgRx5aszPeE4uwc2hGKceeoW\nMPRfwCvocWvk+QIDAQABo1MwUTAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBTA\nephojYn7qwVkDBF9qn1luMrMTjAfBgNVHSMEGDAWgBTAephojYn7qwVkDBF9qn1l\nuMrMTjANBgkqhkiG9w0BAQUFAAOCAQEANeMpauUvXVSOKVCUn5kaFOSPeCpilKIn\nZ57QzxpeR+nBsqTP3UEaBU6bS+5Kb1VSsyShNwrrZHYqLizz/Tt1kL/6cdjHPTfS\ntQWVYrmm3ok9Nns4d0iXrKYgjy6myQzCsplFAMfOEVEiIuCl6rYVSAlk6l5PdPcF\nPseKUgzbFbS9bZvlxrFUaKnjaZC2mqUPuLk/IH2uSrW4nOQdtqvmlKXBx4Ot2/Un\nhw4EbNX/3aBd7YdStysVAq45pmp06drE57xNNB6pXE0zX5IJL4hmXXeXxx12E6nV\n5fEWCRE11azbJHFwLJhWC9kXtNHjUStedejV0NxPNO3CBWaAocvmMw==\n-----END CERTIFICATE-----"
 )
 
 type Apns struct {
@@ -38,7 +40,6 @@ type Apns struct {
 }
 
 func NewApns(cfg *config.Config, db *database.Database) (apns *Apns) {
-	var err error
 	apns = &Apns{
 		DelayTime:            cfg.Delay,
 		CheckDelayedInterval: cfg.CheckInterval,
@@ -47,86 +48,79 @@ func NewApns(cfg *config.Config, db *database.Database) (apns *Apns) {
 		delayedApns:          make(map[database.Registration]time.Time),
 	}
 	log.Debugln("APNS for non NewMessage events will be delayed for", time.Second*time.Duration(apns.DelayTime))
-	log.Debugln("Trying to get existing certs from the DB")
-	// try to retrieve certs from the db
-	certs, successful := apns.db.GetCerts()
-	// if we got some certs but they are no longer valid than 30 days
-	if successful && certificateNotValidAfter(certs.Mail).Sub(time.Now()) < renewTimeBuffer {
-		log.Warnf("Certificate not valid after %s - renewing...", certificateNotValidAfter(certs.Mail))
-		newCerts, err := apple_xserver_certs.RenewCerts(certs, cfg.AppleId, cfg.AppleIdHashedPassword)
+
+	if cfg.CertificateFileP12 != "" {
+		log.Debugf("Loading Certificate at %s", "/etc/xapsd/"+cfg.CertificateFileP12)
+		cert, err := certificate.FromP12File("/etc/xapsd/"+cfg.CertificateFileP12, "")
 		if err != nil {
-			log.Warning(err)
-		} else {
-			certs = newCerts
-			apns.db.PutCerts(certs)
+			log.Fatal("Cert Error:", err)
 		}
-	}
-	if !successful {
-		log.Infof("Failed to get existing certs from the DB, fetching new ones")
-		certs, err = apple_xserver_certs.NewCerts(cfg.AppleId, cfg.AppleIdHashedPassword)
+		topic, err := topicFromCertificate(cert)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalln("Could not parse apns topic from certificate: ", err)
 		}
-		apns.db.PutCerts(certs)
+		apns.Topic = topic
+		apns.client = apns2.NewClient(cert).Production()
+	} else if cfg.CertificateFilePem != "" {
+		log.Debugf("Loading Certificate at %s", "/etc/xapsd/"+cfg.CertificateFilePem)
+		certData, err := ioutil.ReadFile("/etc/xapsd/" + cfg.CertificateFilePem)
+		if err != nil {
+			log.Fatal("Cert Error:", err)
+		}
+		keyData, err := ioutil.ReadFile("/etc/xapsd/" + cfg.CertificateFilePemKey)
+		if err != nil {
+			log.Fatal("Key Error:", err)
+		}
+		cert, err := tls.X509KeyPair(certData, keyData)
+		if err != nil {
+			log.Fatal("Cert Error:", err)
+		}
+		topic, err := topicFromCertificate(cert)
+		if err != nil {
+			log.Fatalln("Could not parse apns topic from certificate: ", err)
+		}
+		apns.Topic = topic
+		apns.client = apns2.NewClient(cert).Production()
+	} else {
+		if cfg.KeyFileKeyId == "" {
+			log.Fatalln(errors.New("No KeyFileKeyId  found"))
+		}
+		if cfg.KeyFileTeamId == "" {
+			log.Fatalln(errors.New("No KeyFileTeamId found"))
+		}
+		if cfg.KeyFileTopic == "" {
+			log.Fatalln(errors.New("No KeyFileTopic found"))
+		}
+		log.Debugln("Loading Keyfile")
+		authKey, err := token.AuthKeyFromFile("/etc/xapsd/" + cfg.KeyFileP8)
+		if err != nil {
+			log.Fatal("Token error:", err)
+		}
+		apnsToken := &token.Token{
+			AuthKey: authKey,
+			KeyID:   cfg.KeyFileKeyId,
+			// TeamID from developer account (View Account -> Membership)
+			TeamID: cfg.KeyFileTeamId,
+		}
+		apns.Topic = cfg.KeyFileTopic
+		apns.client = apns2.NewTokenClient(apnsToken)
 	}
-	log.Infof("Certificate valid until %s", certificateNotValidAfter(certs.Mail))
-
-	// renew certs 30 days before they expire
-	renewIn := certificateNotValidAfter(certs.Mail).Add(-renewTimeBuffer).Sub(time.Now())
-	log.Infof("Renewing in %s", renewIn)
-	apns.RenewTimer = time.AfterFunc(renewIn, func() { apns.renewCert(cfg) })
-
-	// extract the mail cert and retrieve its topic
-	mailCert := certs.Mail
-	topic, err := topicFromCertificate(*mailCert)
-
-	if err != nil {
-		log.Fatalln("Could not parse apns topic from certificate: ", err)
-	}
-	apns.Topic = topic
 	log.Debugln("Topic is", apns.Topic)
-	apns.client = apns2.NewClient(*mailCert).Production()
 
 	// Get the SystemCertPool, continue with an empty pool on error
-	rootCAs, _ := x509.SystemCertPool()
-	if rootCAs == nil {
-		rootCAs = x509.NewCertPool()
-	}
-
-	// Append our cert to the system pool
-	if ok := rootCAs.AppendCertsFromPEM([]byte(GeoTrustCert)); !ok {
-		log.Infoln("No certs appended, using system certs only")
-	}
-	apns.client.HTTPClient.Transport.(*http2.Transport).TLSClientConfig.RootCAs = rootCAs
+	//rootCAs, _ := x509.SystemCertPool()
+	//if rootCAs == nil {
+	//	rootCAs = x509.NewCertPool()
+	//}
+	//
+	//// Append our cert to the system pool
+	//if ok := rootCAs.AppendCertsFromPEM([]byte(GeoTrustCert)); !ok {
+	//	log.Infoln("No certs appended, using system certs only")
+	//}
+	//apns.client.HTTPClient.Transport.(*http2.Transport).TLSClientConfig.RootCAs = rootCAs
 
 	apns.createDelayedNotificationThread()
 	return apns
-}
-
-func (apns *Apns) renewCert(cfg *config.Config) {
-	certs, successful := apns.db.GetCerts()
-	if !successful {
-		log.Fatal("Failed to get certs from DB while trying to renew them")
-	}
-	log.Warnf("Certificate not valid after %s - renewing...", certificateNotValidAfter(certs.Mail))
-
-	newCerts, err := apple_xserver_certs.RenewCerts(certs, cfg.AppleId, cfg.AppleIdHashedPassword)
-	if err != nil {
-		log.Error(err)
-	} else {
-		certs = newCerts
-	}
-	apns.db.PutCerts(certs)
-	mailCert := certs.Mail
-	apns.client = apns2.NewClient(*mailCert).Production()
-
-	// renew certs 30 days before they expire
-	renewIn := certificateNotValidAfter(certs.Mail).Sub(time.Now().Add(-renewTimeBuffer))
-	if renewIn.Minutes() < 10 {
-		renewIn = time.Minute * 10
-	}
-	apns.RenewTimer = time.AfterFunc(renewIn, func() { apns.renewCert(cfg) })
-	log.Warnf("Certificate now valid until %s", certificateNotValidAfter(certs.Mail))
 }
 
 func (apns *Apns) createDelayedNotificationThread() {
@@ -219,19 +213,5 @@ func topicFromCertificate(tlsCert tls.Certificate) (string, error) {
 		return "", errors.New("did not find a Subject.Names[0] with type 0.9.2342.19200300.100.1.1")
 	}
 
-	if !cert.Extensions[7].Id.Equal(productionOID) {
-		return "", errors.New("did not find an Extensions[7] with Id 1.2.840.113635.100.6.3.2 " +
-			"which would label this certificate for production use")
-	}
-
 	return cert.Subject.Names[0].Value.(string), nil
-}
-
-// returns the duration until the certificate is invalid
-func certificateNotValidAfter(certificate *tls.Certificate) time.Time {
-	cert, err := x509.ParseCertificate(certificate.Certificate[0])
-	if err != nil {
-		log.Fatalln("Could not parse certificate: ", err)
-	}
-	return cert.NotAfter
 }

@@ -35,11 +35,20 @@ checkInterval: 20
 # true.
 delay: 30
 
-# To retrieve certificates from Apple, we need to login with a valid Apple ID
-# The accounts email must be given in cleartext, but the password has to
-# be hashed before sending it. To not leak working credentials on running servers,
-# we do not accept the cleartext password here.
-appleId: apple@apple.com
+# Name of the P12 encoded certificate and key in one file to be used to establish a connection to the APNS server
+#certificateFileP12:
+# Name of the PEM encoded certificate and key in one file to be used to establish a connection to the APNS server
+#certificateFilePem:
+#certificateFilePemKey:
 
-# use `xaps -pass` to calculate the hash of the apple id password
-appleIdHashedPassword: thehash
+# Filename of the P8 encoded key to establish a connection to the APNS server
+keyFileP8:
+
+# The following options are only required for keyFile based authentication
+
+# APNS topic
+keyFileTopic: com.apple.mail.nil
+# KeyID from developer account (Certificates, Identifiers & Profiles -> Keys)
+keyFileKeyId: ABCDEFGH
+# TeamID from developer account (View Account -> Membership)
+keyFileTeamId: ABCDEFGH

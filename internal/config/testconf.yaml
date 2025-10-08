@@ -1,5 +1,9 @@
 loglevel: info
 databaseFile: /var/lib/xapsd/database.json
+KeyFileP8: key.p8
+KeyFileTopic: com.apple.mail.nil
+keyFileKeyId: ABCDEFGH
+keyFileTeamId: ABCDEFGH
 port: 11619
 checkInterval: 20
 delay: 30

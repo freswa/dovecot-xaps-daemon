@@ -16,8 +16,13 @@ type (
 		ListenAddr            string
 		CheckInterval         uint
 		Delay                 uint
-		AppleId               string
-		AppleIdHashedPassword string
+		CertificateFileP12    string
+		CertificateFilePem    string
+		CertificateFilePemKey string
+		KeyFileP8             string
+		KeyFileTopic          string
+		KeyFileKeyId          string
+		KeyFileTeamId         string
 		TlsCertfile           string
 		TlsKeyfile            string
 		TlsPort               string

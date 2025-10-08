@@ -2,12 +2,13 @@ package internal
 
 import (
 	"encoding/json"
+	"net/http"
+	"strings"
+
 	"github.com/freswa/dovecot-xaps-daemon/internal/config"
 	"github.com/freswa/dovecot-xaps-daemon/internal/database"
 	"github.com/julienschmidt/httprouter"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"strings"
 )
 
 type httpHandler struct {
@@ -99,6 +100,8 @@ func (httpHandler *httpHandler) handleRegister(writer http.ResponseWriter, reque
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	log.Debugf("handle() Register replying to dovecot plugin with: %s", httpHandler.apns.Topic)
 
 	writer.Write([]byte(httpHandler.apns.Topic))
 }
