@@ -103,7 +103,7 @@ func NewApns(cfg *config.Config, db *database.Database) (apns *Apns) {
 			TeamID: cfg.KeyFileTeamId,
 		}
 		apns.Topic = cfg.KeyFileTopic
-		apns.client = apns2.NewTokenClient(apnsToken)
+		apns.client = apns2.NewTokenClient(apnsToken).Production()
 	}
 	log.Debugln("Topic is", apns.Topic)
 
