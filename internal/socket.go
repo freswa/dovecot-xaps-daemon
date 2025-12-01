@@ -149,13 +149,6 @@ func (httpHandler *httpHandler) handleNotify(writer http.ResponseWriter, request
 		}
 	}
 
-	// we don't know how to handle other mailboxes other than INBOX, so ignore them
-	if notify.Mailbox != "INBOX" {
-		log.Debugln("Ignoring non INBOX event for:", notify.Mailbox)
-		writer.WriteHeader(http.StatusOK)
-		return
-	}
-
 	// Find all the devices registered for this mailbox event
 	registrations, err := httpHandler.db.FindRegistrations(notify.Username, notify.Mailbox)
 	if err != nil {
@@ -182,7 +175,7 @@ func (httpHandler *httpHandler) handleNotify(writer http.ResponseWriter, request
 	// Send a notification to all registered devices. We ignore failures
 	// because there is not a lot we can do.
 	for _, registration := range registrations {
-		httpHandler.apns.SendNotification(registration, !isMessageNew)
+		httpHandler.apns.SendNotification(registration, !isMessageNew, notify.Mailbox)
 	}
 
 	writer.WriteHeader(http.StatusOK)
