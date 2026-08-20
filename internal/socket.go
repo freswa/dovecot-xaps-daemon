@@ -149,13 +149,6 @@ func (httpHandler *httpHandler) handleNotify(writer http.ResponseWriter, request
 		}
 	}
 
-	// we don't know how to handle other mailboxes other than INBOX, so ignore them
-	if notify.Mailbox != "INBOX" {
-		log.Debugln("Ignoring non INBOX event for:", notify.Mailbox)
-		writer.WriteHeader(http.StatusOK)
-		return
-	}
-
 	// Find all the devices registered for this mailbox event
 	registrations, err := httpHandler.db.FindRegistrations(notify.Username, notify.Mailbox)
 	if err != nil {
@@ -165,12 +158,12 @@ func (httpHandler *httpHandler) handleNotify(writer http.ResponseWriter, request
 	}
 
 	for _, r := range registrations {
-		log.Debugf("Found registration %s with token %s for username: %s", r.AccountId, r.DeviceToken, notify.Username)
+		log.Debugf("Found registration %s with token %s for username: %s and mailbox: %s", r.AccountId, r.DeviceToken, notify.Username, notify.Mailbox)
 	}
 	if len(registrations) == 0 {
 		if httpHandler.db.UserExists(notify.Username) {
 			// This isn't an error as registrations are also empty if the mailbox doesn't match
-			log.Infof("No registered mailbox found for username: %s", notify.Username)
+			log.Infof("%s is not a registered mailbox for username: %s", notify.Mailbox, notify.Username)
 			writer.WriteHeader(http.StatusNoContent)
 		} else {
 			log.Warnf("No registration found for username: %s", notify.Username)
@@ -182,7 +175,7 @@ func (httpHandler *httpHandler) handleNotify(writer http.ResponseWriter, request
 	// Send a notification to all registered devices. We ignore failures
 	// because there is not a lot we can do.
 	for _, registration := range registrations {
-		httpHandler.apns.SendNotification(registration, !isMessageNew)
+		httpHandler.apns.SendNotification(registration, !isMessageNew, notify.Mailbox)
 	}
 
 	writer.WriteHeader(http.StatusOK)
