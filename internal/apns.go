@@ -145,7 +145,7 @@ func (apns *Apns) checkDelayed() {
 	}
 	apns.mapMutex.Unlock()
 	for _, reg := range sendNow {
-		apns.SendNotification(reg, false)
+		apns.sendNotification(reg, apns2.PushTypeBackground, apns2.PriorityLow)
 	}
 }
 
@@ -159,6 +159,10 @@ func (apns *Apns) SendNotification(registration database.Registration, delayed b
 		delete(apns.delayedApns, registration)
 		apns.mapMutex.Unlock()
 	}
+	apns.sendNotification(registration, apns2.PushTypeAlert, apns2.PriorityHigh)
+}
+
+func (apns *Apns) sendNotification(registration database.Registration, pushType apns2.EPushType, priority int) {
 	log.Debugln("Sending notification to", registration.AccountId, "/", registration.DeviceToken)
 
 	notification := &apns2.Notification{}
@@ -168,10 +172,9 @@ func (apns *Apns) SendNotification(registration database.Registration, delayed b
 	composedPayload = append(composedPayload, []byte(`"account-id":"`+registration.AccountId+`"`)...)
 	composedPayload = append(composedPayload, []byte(`}}`)...)
 	notification.Payload = composedPayload
-	notification.PushType = apns2.PushTypeBackground
+	notification.PushType = pushType
+	notification.Priority = priority
 	notification.Expiration = time.Now().Add(24 * time.Hour)
-	// set the apns-priority
-	//notification.Priority = apns2.PriorityLow
 
 	if log.IsLevelEnabled(log.DebugLevel) {
 		dbgstr, _ := notification.MarshalJSON()
